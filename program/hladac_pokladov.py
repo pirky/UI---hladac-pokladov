@@ -1,6 +1,6 @@
 import random
 
-random.seed(0)
+# random.seed(0)
 
 NUM_OF_CELLS = 32
 map_lines = 0
@@ -152,6 +152,13 @@ def tournament(generation, new_generation):
     return new_generation
 
 
+def mutate(individual):
+    for i in range(10):
+        index = random.randint(0, 63)
+        individual["memory_cells"][index] = random.randint(0, 255)
+    return individual
+
+
 def create_generation(generation):
     new_generation = {}
     sorted_gen = [i[1] for i in sorted(generation.items(), reverse=True, key=lambda x: x[1]["fitness"])]
@@ -163,7 +170,10 @@ def create_generation(generation):
     for i in range(89, 100):
         new_generation[i] = fresh_individual()
 
-    # este mutovanie dorobit
+    for _ in range(35):
+        index = random.randint(0, 99)
+        new_generation[index] = mutate(new_generation[index])
+
     return new_generation
 
 
@@ -179,14 +189,13 @@ def info_generation(generation):
 
 
 def start():
-    num_of_generations = 1
+    num_of_generations = 400
     num_of_individuals = 100
     init()
     generation = first_generation(num_of_individuals)
     for i in range(num_of_generations):
         print(f"{i}. generation")
         for curr_ind in range(num_of_individuals):
-            print(f"{curr_ind}. individual")
             virtual_machine(generation[curr_ind])
             found_treasures(generation[curr_ind])
             set_fitness(generation[curr_ind])
