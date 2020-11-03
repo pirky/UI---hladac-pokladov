@@ -1,0 +1,10 @@
+map_lines:7
+map_columns:7
+start_line:6
+start_column:3
+num_of_treasures:5
+treasure0:1,4
+treasure1:2,2
+treasure2:3,6
+treasure3:4,1
+treasure4:5,4
