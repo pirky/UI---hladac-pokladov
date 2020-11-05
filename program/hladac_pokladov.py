@@ -1,4 +1,5 @@
 import random
+import numpy as np
 
 random.seed(0)
 
@@ -16,6 +17,8 @@ map_columns = 0
 all_treasures = {}
 start_line = 0
 start_column = 0
+best_individual = {"fitness": 0, "path": []}
+averages = 0
 
 
 def init(file_path):
@@ -54,7 +57,7 @@ def first_generation():
         individuals[i] = {}
         individuals[i]["fitness"] = 0
         individuals[i]["path"] = []
-        individuals[i]["memory_cells"] = [0 for _ in range(64)]
+        individuals[i]["memory_cells"] = np.zeros(64, dtype=np.uint8)
         individuals[i]["treasures"] = list()
         for j in range(NUM_OF_CELLS):
             individuals[i]["memory_cells"][j] = random.randint(0, 255)
@@ -83,13 +86,11 @@ def virtual_machine(individual):
 
         if operation == "00":  # increment
             instructions[address] += 1
-            if instructions[address] == 256:
-                instructions[address] = 0
+            instructions[address] = instructions[address].astype(np.uint8)
 
         elif operation == "01":  # decrement
             instructions[address] -= 1
-            if instructions[address] == -1:
-                instructions[address] = 255
+            instructions[address] = instructions[address].astype(np.uint8)
 
         elif operation == "10":  # jump
             index = address
@@ -122,7 +123,7 @@ def found_treasures(individual):
         elif move == "L":
             curr_column -= 1
 
-        if not 0 <= curr_line < map_lines or not 0 <= curr_column < map_columns:  # check if I'm in the map
+        if not 0 <= curr_line < map_lines or not 0 <= curr_column < map_columns:            # check if I'm in the map
             individual["path"] = individual["path"][:counter]
             return
 
@@ -131,7 +132,6 @@ def found_treasures(individual):
             individual["treasures"].append(curr_pos)
 
         if len(individual["treasures"]) == len(all_treasures):
-            # print("All treasures were found")
             return
         counter += 1
 
@@ -139,11 +139,14 @@ def found_treasures(individual):
 def set_fitness(individual):
     if len(individual["path"]) == 0:
         return
+    elif len(individual["treasures"]) == 0:
+        individual["fitness"] = len(individual["path"]) / 1000
+
     individual["fitness"] = len(individual["treasures"]) + 1 - len(individual["path"]) / 1000
 
 
 def fresh_individual():
-    individual = {"fitness": 0, "path": [], "memory_cells": [0 for _ in range(64)], "treasures": list()}
+    individual = {"fitness": 0, "path": [], "memory_cells": np.zeros(64, dtype=np.uint8), "treasures": list()}
     for i in range(NUM_OF_CELLS):
         individual["memory_cells"][i] = random.randint(0, 255)
     return individual
@@ -164,6 +167,15 @@ def crossover(mom, dad):
     return individual
 
 
+def roulette(sorted_gen, new_generation):
+    start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
+    weights = [i["fitness"] for i in sorted_gen]
+
+    for i in range(start_index, NUM_OF_INDIVIDUALS):
+        parents = random.choices(sorted_gen, weights=weights, k=2)
+        new_generation[i] = crossover(parents[0]["memory_cells"], parents[1]["memory_cells"])
+
+
 def tournament(sorted_gen, new_generation):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
     num_tournament = int(TOURNAMENT * NUM_OF_INDIVIDUALS)
@@ -176,7 +188,7 @@ def tournament(sorted_gen, new_generation):
 def mutate_little(individual):
     for i in range(2):
         index = random.randint(0, 63)
-        individual["memory_cells"][index] = random.randint(0, 255)
+        individual["memory_cells"][index] = np.uint8(random.randint(0, 255))
 
     return {"fitness": 0, "path": [], "memory_cells": individual["memory_cells"], "treasures": list()}
 
@@ -185,7 +197,7 @@ def mutate_random(individual):
     mut_count = random.randint(5, 15)
     for i in range(mut_count):
         index = random.randint(0, 63)
-        individual["memory_cells"][index] = random.randint(0, 255)
+        individual["memory_cells"][index] = np.uint8(random.randint(0, 255))
 
     return {"fitness": 0, "path": [], "memory_cells": individual["memory_cells"], "treasures": list()}
 
@@ -232,24 +244,38 @@ def create_generation(sorted_gen):
     for i in range(start_fresh, end_fresh):
         new_generation[i] = fresh_individual()
 
-    tournament(sorted_gen, new_generation)              # crossover
+    roulette(sorted_gen, new_generation)                # crossover
 
     mutation(new_generation)                            # mutation
 
     return new_generation
 
 
+def path_print(path):
+    string_path = ""
+    for char in path:
+        string_path += char + ","
+    return string_path[:len(string_path) - 1]
+
+
 def info_generation(sorted_gen):
-    # if sorted_gen[0]["fitness"] >= 5:
-    #     return True
+    global best_individual
 
     avg = round(sum([i["fitness"] for i in sorted_gen]) / NUM_OF_INDIVIDUALS, 3)
     print(f"avg:\t{avg}", "\tbest:\t{}".format(sorted_gen[0]["fitness"]))
+    # path = path_print(sorted_gen[0]["path"])
     # print(f"Generation avg fitness: {avg}")
     # print(f"""Best individual info:
     # fitness:        {sorted_gen[0]["fitness"]}
-    # path:           {sorted_gen[0]["path"]}
+    # path:           {path}
     # path length:    {len(sorted_gen[0]["path"])}""")
+
+    if best_individual["fitness"] < sorted_gen[0]["fitness"]:
+        best_individual["fitness"] = sorted_gen[0]["fitness"]
+        best_individual["path"] = [char for char in sorted_gen[0]["path"]]
+        if sorted_gen[0]["fitness"] >= 5:
+            print("\nFound new best global solution.")
+            return True
 
     return False
 
@@ -257,10 +283,11 @@ def info_generation(sorted_gen):
 def start():
     global NUM_OF_GENERATIONS
     global NUM_OF_INDIVIDUALS
-    file_path = "init.txt"
 
+    file_path = "init.txt"
     init(file_path)
     generation = first_generation()
+
     for i in range(NUM_OF_GENERATIONS):
         for curr_ind in range(NUM_OF_INDIVIDUALS):
             virtual_machine(generation[curr_ind])
@@ -268,8 +295,17 @@ def start():
             set_fitness(generation[curr_ind])
 
         sorted_gen = [i[1] for i in sorted(generation.items(), reverse=True, key=lambda x: x[1]["fitness"])]
-        print(f"{i}. generation")
-        info_generation(sorted_gen)
+        print(f"{i + 1}. generation")
+        done = info_generation(sorted_gen)
+        if done:
+            commands = ["1", "2"]
+            print("Press \"1\" if you want to keep looking for better solution.\nPress \"2\" if you want to end.")
+            command = input("Type your option: ")
+            while command not in commands:
+                print("Try it again.")
+                command = input("Type your option: ")
+            if command == "2":
+                return
 
         generation = create_generation(sorted_gen)
 
