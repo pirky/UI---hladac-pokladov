@@ -4,13 +4,12 @@ random.seed(0)
 
 NUM_OF_CELLS = 32           # number of cells initialized in first generation
 ELITISM = 0.02              # percent of new individuals made by elitism
-FRESH = 0.2                 # percent of new individuals made for new generation
-CROSSOVER = 0.7             # percent of new individuals made by crossover
+FRESH = 0.25                # percent of new individuals made for new generation
 TOURNAMENT = 0.5            # percent of individuals in tournament
-MUTATION = 0.2              # percent of best individuals chosen to choose from in mutation
+MUTATION = 0.5              # probability of mutation
 
-NUM_OF_GENERATIONS = 100
-NUM_OF_INDIVIDUALS = 400
+NUM_OF_GENERATIONS = 400
+NUM_OF_INDIVIDUALS = 100
 
 map_lines = 0
 map_columns = 0
@@ -140,7 +139,6 @@ def found_treasures(individual):
 def set_fitness(individual):
     if len(individual["path"]) == 0:
         return
-
     individual["fitness"] = len(individual["treasures"]) + 1 - len(individual["path"]) / 1000
 
 
@@ -168,10 +166,9 @@ def crossover(mom, dad):
 
 def tournament(sorted_gen, new_generation):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
-    end_index = int((ELITISM + FRESH + CROSSOVER) * NUM_OF_INDIVIDUALS)
     num_tournament = int(TOURNAMENT * NUM_OF_INDIVIDUALS)
 
-    for i in range(start_index, end_index):
+    for i in range(start_index, NUM_OF_INDIVIDUALS):
         sorted_individuals = sorted(random.choices(sorted_gen, k=num_tournament), reverse=True, key=lambda x: x["fitness"])
         new_generation[i] = crossover(sorted_individuals[0]["memory_cells"], sorted_individuals[1]["memory_cells"])
 
@@ -216,14 +213,11 @@ def mutate_switch(individual):
     return {"fitness": 0, "path": [], "memory_cells": individual["memory_cells"], "treasures": list()}
 
 
-def mutation_selection(sorted_gen, new_generation):
-    index = int(MUTATION * NUM_OF_INDIVIDUALS)
-    best_individuals = sorted_gen[:index]
-    index = int((ELITISM + FRESH + CROSSOVER) * NUM_OF_INDIVIDUALS)
-
-    for i in range(index, NUM_OF_INDIVIDUALS):
-        individual = random.choice(best_individuals)
-        new_generation[i] = mutate_switch(individual)
+def mutation(new_generation):
+    start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
+    for i in range(start_index, len(new_generation)):
+        if random.random() < MUTATION:
+            new_generation[i] = mutate_random(new_generation[i])
 
 
 def create_generation(sorted_gen):
@@ -240,7 +234,7 @@ def create_generation(sorted_gen):
 
     tournament(sorted_gen, new_generation)              # crossover
 
-    mutation_selection(sorted_gen, new_generation)      # mutation
+    mutation(new_generation)                            # mutation
 
     return new_generation
 
