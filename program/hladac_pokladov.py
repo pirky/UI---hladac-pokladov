@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import matplotlib.pyplot as plt
 
 random.seed(0)
 
@@ -49,8 +50,7 @@ def init(file_path):
     file.close()
 
 
-# create first generation of individuals
-# one individual will have "NUM_OF_CELLS" filled with random values
+# create first generation of individuals, one individual will have "NUM_OF_CELLS" filled with random values
 def first_generation():
     individuals = {}
 
@@ -189,7 +189,7 @@ def tournament(sorted_gen, new_generation):
         new_generation[i] = crossover(sorted_individuals[0]["memory_cells"], sorted_individuals[1]["memory_cells"])
 
 
-# mutate just 2 bytes of individual
+# mutate just 2 random memory cells of individual
 def mutate_little(individual):
     for i in range(2):
         index = random.randint(0, 63)
@@ -198,6 +198,7 @@ def mutate_little(individual):
     return {"fitness": 0, "path": [], "memory_cells": individual["memory_cells"], "treasures": list()}
 
 
+# mutate random 5 to 15 memory cells of individual
 def mutate_random(individual):
     mut_count = random.randint(5, 15)
     for i in range(mut_count):
@@ -207,29 +208,7 @@ def mutate_random(individual):
     return {"fitness": 0, "path": [], "memory_cells": individual["memory_cells"], "treasures": list()}
 
 
-def mutate_switch(individual):
-    blok_length = 6
-    index_1 = random.randint(0, 63 - blok_length)
-    index_2 = random.randint(0, 63 - blok_length)
-
-    while abs(index_1 - index_2) < blok_length:
-        index_1 = random.randint(0, 63 - blok_length)
-        index_2 = random.randint(0, 63 - blok_length)
-
-    minimum = min(index_1, index_2)
-    copy_1 = individual["memory_cells"][minimum: minimum + blok_length]
-    maximum = max(index_1, index_2)
-    copy_2 = individual["memory_cells"][maximum: maximum + blok_length]
-
-    for i in range(minimum, maximum + blok_length):
-        if i < minimum + blok_length:
-            individual["memory_cells"][i] = copy_2.pop()
-        elif i >= maximum:
-            individual["memory_cells"][i] = copy_1.pop()
-
-    return {"fitness": 0, "path": [], "memory_cells": individual["memory_cells"], "treasures": list()}
-
-
+# mutate generation with particular mutation function
 def mutation(new_generation):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
     for i in range(start_index, len(new_generation)):
@@ -237,6 +216,7 @@ def mutation(new_generation):
             new_generation[i] = mutate_random(new_generation[i])
 
 
+# create new generation using elitism, creating new individuals and rest are selected with particular selection method
 def create_generation(sorted_gen):
     new_generation = {}
 
@@ -249,13 +229,14 @@ def create_generation(sorted_gen):
     for i in range(start_fresh, end_fresh):
         new_generation[i] = fresh_individual()
 
-    roulette(sorted_gen, new_generation)                # crossover
+    tournament(sorted_gen, new_generation)                # crossover
 
     mutation(new_generation)                            # mutation
 
     return new_generation
 
 
+# return path as string
 def path_print(path):
     string_path = ""
     for char in path:
@@ -263,10 +244,13 @@ def path_print(path):
     return string_path[:len(string_path) - 1]
 
 
+# print info about generation -> average fitness and info about best individual
 def info_generation(sorted_gen):
     global best_individual
+    global averages
 
     avg = round(sum([i["fitness"] for i in sorted_gen]) / NUM_OF_INDIVIDUALS, 3)
+    averages.append(avg)
     print(f"avg:\t{avg}", "\tbest:\t{}".format(sorted_gen[0]["fitness"]))
     # path = path_print(sorted_gen[0]["path"])
     # print(f"Generation avg fitness: {avg}")
@@ -285,49 +269,65 @@ def info_generation(sorted_gen):
     return False
 
 
+# print final summarization with graph
+def final_print():
+    avg = round(sum(averages) / len(averages), 3)
+    path = path_print(best_individual["path"])
+    print(f"Average fitness: {avg}")
+    print(f"""Best individual info:
+    fitness:        {best_individual["fitness"]}
+    path:           {path}
+    path length:    {len(path)}""")
+    plt.plot(averages)
+    plt.show()
+
+
+# starting function with
 def start():
     global NUM_OF_GENERATIONS
     global NUM_OF_INDIVIDUALS
+    commands = ["1", "2"]
 
     file_path = "init.txt"
     init(file_path)
     generation = first_generation()
 
-    for i in range(NUM_OF_GENERATIONS):
-        for curr_ind in range(NUM_OF_INDIVIDUALS):
-            virtual_machine(generation[curr_ind])
-            found_treasures(generation[curr_ind])
-            set_fitness(generation[curr_ind])
+    while True:
+        for i in range(NUM_OF_GENERATIONS):
+            for curr_ind in range(NUM_OF_INDIVIDUALS):
+                virtual_machine(generation[curr_ind])
+                found_treasures(generation[curr_ind])
+                set_fitness(generation[curr_ind])
 
-        sorted_gen = [i[1] for i in sorted(generation.items(), reverse=True, key=lambda x: x[1]["fitness"])]
-        print(f"{i + 1}. generation")
-        done = info_generation(sorted_gen)
-        if done:
-            commands = ["1", "2"]
-            print("Press \"1\" if you want to keep looking for better solution.\nPress \"2\" if you want to end.")
-            command = input("Type your option: ")
-            while command not in commands:
-                print("Try it again.")
+            sorted_gen = [i[1] for i in sorted(generation.items(), reverse=True, key=lambda x: x[1]["fitness"])]
+            print(f"{i + 1}. generation")
+
+            done = info_generation(sorted_gen)
+            done = False
+            if done:
+
+                print("Press \"1\" if you want to keep looking for better solution.\nPress \"2\" if you want to end.")
                 command = input("Type your option: ")
-            if command == "2":
-                return
+                while command not in commands:
+                    print("Try it again.")
+                    command = input("Type your option: ")
+                if command == "2":
+                    final_print()
+                    return
 
-        generation = create_generation(sorted_gen)
+            generation = create_generation(sorted_gen)
+
+        print("Press \"1\" if you want to continue with generating generations\nPress \"2\" if you want to end.")
+        command = input("Type your option: ")
+        while command not in commands:
+            print("Try it again.")
+            command = input("Type your option: ")
+        if command == "2":
+            final_print()
+            return
 
 
 start()
 
 
 # sorted_gen = [i[0] for i in sorted(generation.items(), reverse=True, key=lambda x: x[1]["fitness"])]
-
-
-# # libraries
-# import matplotlib.pyplot as plt
-# import numpy as np
-#
-# # create data
-# values = np.cumsum(np.random.randn(1000, 1))
-#
-# # use the plot function
-# plt.plot(values)
-# plt.show()
