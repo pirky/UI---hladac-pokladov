@@ -18,9 +18,10 @@ all_treasures = {}
 start_line = 0
 start_column = 0
 best_individual = {"fitness": 0, "path": []}
-averages = 0
+averages = []
 
 
+# initialize program with data from txt file
 def init(file_path):
     global map_lines
     global map_columns
@@ -48,11 +49,11 @@ def init(file_path):
     file.close()
 
 
+# create first generation of individuals
+# one individual will have "NUM_OF_CELLS" filled with random values
 def first_generation():
-    global NUM_OF_INDIVIDUALS
-    global NUM_OF_CELLS
-
     individuals = {}
+
     for i in range(NUM_OF_INDIVIDUALS):
         individuals[i] = {}
         individuals[i]["fitness"] = 0
@@ -64,6 +65,7 @@ def first_generation():
     return individuals
 
 
+# returns direction of move
 def write(move):
     if move == "00":
         return "H"
@@ -76,6 +78,7 @@ def write(move):
     return None
 
 
+# virtual machine to execute program of one individual
 def virtual_machine(individual):
     program_counter = 0
     index = 0
@@ -103,12 +106,8 @@ def virtual_machine(individual):
         index += 1
 
 
+# go through path and collect treasures
 def found_treasures(individual):
-    global all_treasures
-    global start_line
-    global start_column
-    global map_lines
-    global map_columns
 
     curr_line = start_line
     curr_column = start_column
@@ -131,11 +130,12 @@ def found_treasures(individual):
         if curr_pos in all_treasures.values() and curr_pos not in individual["treasures"]:  # check for treasure
             individual["treasures"].append(curr_pos)
 
-        if len(individual["treasures"]) == len(all_treasures):
+        if len(individual["treasures"]) == len(all_treasures):                  # all treasures found, searching ends
             return
         counter += 1
 
 
+# calculate fitness
 def set_fitness(individual):
     if len(individual["path"]) == 0:
         return
@@ -145,6 +145,7 @@ def set_fitness(individual):
     individual["fitness"] = len(individual["treasures"]) + 1 - len(individual["path"]) / 1000
 
 
+# create brand new individual
 def fresh_individual():
     individual = {"fitness": 0, "path": [], "memory_cells": np.zeros(64, dtype=np.uint8), "treasures": list()}
     for i in range(NUM_OF_CELLS):
@@ -152,6 +153,7 @@ def fresh_individual():
     return individual
 
 
+# crossover parents and return new individual
 def crossover(mom, dad):
     child = []
     copy_length = random.randint(0, 63)
@@ -167,6 +169,7 @@ def crossover(mom, dad):
     return individual
 
 
+# roulette selection for selecting parents for crossover
 def roulette(sorted_gen, new_generation):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
     weights = [i["fitness"] for i in sorted_gen]
@@ -176,6 +179,7 @@ def roulette(sorted_gen, new_generation):
         new_generation[i] = crossover(parents[0]["memory_cells"], parents[1]["memory_cells"])
 
 
+# tournament selection for selecting parents for crossover
 def tournament(sorted_gen, new_generation):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
     num_tournament = int(TOURNAMENT * NUM_OF_INDIVIDUALS)
@@ -185,6 +189,7 @@ def tournament(sorted_gen, new_generation):
         new_generation[i] = crossover(sorted_individuals[0]["memory_cells"], sorted_individuals[1]["memory_cells"])
 
 
+# mutate just 2 bytes of individual
 def mutate_little(individual):
     for i in range(2):
         index = random.randint(0, 63)
