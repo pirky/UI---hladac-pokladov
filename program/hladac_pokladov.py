@@ -258,13 +258,13 @@ def info_generation(sorted_gen):
     avg = round(sum([i["fitness"] for i in sorted_gen]) / NUM_OF_INDIVIDUALS, 3)
     averages.append(avg)
     bests.append(sorted_gen[0]["fitness"])
-    print(f"avg:\t{avg}", "\tbest:\t{}".format(sorted_gen[0]["fitness"]))
-    # path = path_print(sorted_gen[0]["path"])
-    # print(f"Generation avg fitness: {avg}")
-    # print(f"""Best individual info:
-    # fitness:        {sorted_gen[0]["fitness"]}
-    # path:           {path}
-    # path length:    {len(sorted_gen[0]["path"])}""")
+    # print(f"avg:\t{avg}", "\tbest:\t{}".format(sorted_gen[0]["fitness"]))
+    path = path_print(sorted_gen[0]["path"])
+    print(f"Generation avg fitness: {avg}")
+    print(f"""Best individual info:
+    fitness:        {sorted_gen[0]["fitness"]}
+    path:           {path}
+    path length:    {len(sorted_gen[0]["path"])}""")
 
     if best_individual["fitness"] < sorted_gen[0]["fitness"]:
         best_individual["fitness"] = sorted_gen[0]["fitness"]
@@ -346,7 +346,6 @@ def start():
             print(f"{i + 1}. generation")
 
             done = info_generation(sorted_gen)
-            done = False
             if done:
 
                 print("Press \"1\" if you want to keep looking for better solution.\nPress \"2\" if you want to end.")
