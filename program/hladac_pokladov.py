@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 
 random.seed(0)
 
-NUM_OF_CELLS = 32           # number of cells initialized in first generation
-ELITISM = 0.02              # percent of new individuals made by elitism
-FRESH = 0.25                # percent of new individuals made for new generation
-TOURNAMENT = 0.5            # percent of individuals in tournament
-MUTATION = 0.5              # probability of mutation
+NUM_OF_CELLS = 32       # number of cells initialized in first generation
+FRESH = 0.25            # percent of new individuals made for new generation
+ELITISM = 0.02          # percent of new individuals made by elitism
+TOURNAMENT = 0.5        # percent of individuals in tournament
+MUTATION = 0.5          # probability of mutation
 
 NUM_OF_GENERATIONS = 400
 NUM_OF_INDIVIDUALS = 100
@@ -20,6 +20,7 @@ start_line = 0
 start_column = 0
 best_individual = {"fitness": 0, "path": []}
 averages = []
+bests = []
 
 
 # initialize program with data from txt file
@@ -31,6 +32,7 @@ def init(file_path):
     global start_column
     file = open(file_path, "r")
     data = {}
+
     for line in file:
         arr = line.split(":")
         if arr[0].startswith("treasure"):
@@ -108,7 +110,6 @@ def virtual_machine(individual):
 
 # go through path and collect treasures
 def found_treasures(individual):
-
     curr_line = start_line
     curr_column = start_column
     counter = 0
@@ -122,7 +123,7 @@ def found_treasures(individual):
         elif move == "L":
             curr_column -= 1
 
-        if not 0 <= curr_line < map_lines or not 0 <= curr_column < map_columns:            # check if I'm in the map
+        if not 0 <= curr_line < map_lines or not 0 <= curr_column < map_columns:  # check if I'm in the map
             individual["path"] = individual["path"][:counter]
             return
 
@@ -130,7 +131,7 @@ def found_treasures(individual):
         if curr_pos in all_treasures.values() and curr_pos not in individual["treasures"]:  # check for treasure
             individual["treasures"].append(curr_pos)
 
-        if len(individual["treasures"]) == len(all_treasures):                  # all treasures found, searching ends
+        if len(individual["treasures"]) == len(all_treasures):  # all treasures found, searching ends
             return
         counter += 1
 
@@ -185,7 +186,8 @@ def tournament(sorted_gen, new_generation):
     num_tournament = int(TOURNAMENT * NUM_OF_INDIVIDUALS)
 
     for i in range(start_index, NUM_OF_INDIVIDUALS):
-        sorted_individuals = sorted(random.choices(sorted_gen, k=num_tournament), reverse=True, key=lambda x: x["fitness"])
+        sorted_individuals = sorted(random.choices(sorted_gen, k=num_tournament), reverse=True,
+                                    key=lambda x: x["fitness"])
         new_generation[i] = crossover(sorted_individuals[0]["memory_cells"], sorted_individuals[1]["memory_cells"])
 
 
@@ -217,21 +219,24 @@ def mutation(new_generation):
 
 
 # create new generation using elitism, creating new individuals and rest are selected with particular selection method
-def create_generation(sorted_gen):
+def create_generation(sorted_gen, selection_type):
     new_generation = {}
 
-    elite_end = int(ELITISM * NUM_OF_INDIVIDUALS)       # elitism
+    elite_end = int(ELITISM * NUM_OF_INDIVIDUALS)   # elitism
     for i in range(0, elite_end):
-        new_generation[i] = {"fitness": 0, "path": [], "memory_cells": sorted_gen[i]["memory_cells"], "treasures": list()}
+        new_generation[i] = {"fitness": 0, "path": [], "memory_cells": sorted_gen[i]["memory_cells"],
+                             "treasures": list()}
 
-    start_fresh = int(ELITISM * NUM_OF_INDIVIDUALS)     # fresh individuals
+    start_fresh = int(ELITISM * NUM_OF_INDIVIDUALS)  # fresh individuals
     end_fresh = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
     for i in range(start_fresh, end_fresh):
         new_generation[i] = fresh_individual()
 
-    tournament(sorted_gen, new_generation)                # crossover
-
-    mutation(new_generation)                            # mutation
+    if selection_type == "1":                       # crossover
+        tournament(sorted_gen, new_generation)
+    else:
+        roulette(sorted_gen, new_generation)
+    mutation(new_generation)                        # mutation
 
     return new_generation
 
@@ -248,9 +253,11 @@ def path_print(path):
 def info_generation(sorted_gen):
     global best_individual
     global averages
+    global bests
 
     avg = round(sum([i["fitness"] for i in sorted_gen]) / NUM_OF_INDIVIDUALS, 3)
     averages.append(avg)
+    bests.append(sorted_gen[0]["fitness"])
     print(f"avg:\t{avg}", "\tbest:\t{}".format(sorted_gen[0]["fitness"]))
     # path = path_print(sorted_gen[0]["path"])
     # print(f"Generation avg fitness: {avg}")
@@ -277,8 +284,14 @@ def final_print():
     print(f"""Best individual info:
     fitness:        {best_individual["fitness"]}
     path:           {path}
-    path length:    {len(path)}""")
-    plt.plot(averages)
+    path length:    {len(best_individual["path"])}""")
+
+    fig, ax = plt.subplots()
+    ax.plot(averages, label="Average fitness")
+    ax.plot(bests, label="Best fitness")
+    ax.set(xlabel='Generations', ylabel='Fitness', title='Generation averages graph')
+    ax.grid()
+    plt.legend()
     plt.show()
 
 
@@ -286,7 +299,37 @@ def final_print():
 def start():
     global NUM_OF_GENERATIONS
     global NUM_OF_INDIVIDUALS
+    global FRESH
+    global ELITISM
+    global MUTATION
     commands = ["1", "2"]
+
+    print("""    ------------------------
+        Treasures Hunter 
+       ------------------
+        """)
+
+    NUM_OF_INDIVIDUALS = int(input("Number of individuals: "))
+    NUM_OF_GENERATIONS = int(input("Number of generations: "))
+
+    print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
+    selection_type = input("Your choice: ")
+    while selection_type != "1" and selection_type != "2":
+        print("Try it again.")
+        print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
+        selection_type = input("Your choice: ")
+
+    MUTATION = int(input("Percent of probability to mutate: ")) / 100
+    while MUTATION > 1:
+        print("Try it again.")
+        MUTATION = int(input("Percent of probability to mutate: ")) / 100
+
+    ELITISM = int(input("Percent of elitism: ")) / 100
+    FRESH = int(input("Percent of fresh individuals: ")) / 100
+    while ELITISM + FRESH > 1:
+        print("Wrong numbers. Try it again.")
+        ELITISM = int(input("Percent of elitism: ")) / 100
+        FRESH = int(input("Percent of fresh individuals: ")) / 100
 
     file_path = "init.txt"
     init(file_path)
@@ -315,7 +358,7 @@ def start():
                     final_print()
                     return
 
-            generation = create_generation(sorted_gen)
+            generation = create_generation(sorted_gen, selection_type)
 
         print("Press \"1\" if you want to continue with generating generations\nPress \"2\" if you want to end.")
         command = input("Type your option: ")
@@ -328,6 +371,5 @@ def start():
 
 
 start()
-
 
 # sorted_gen = [i[0] for i in sorted(generation.items(), reverse=True, key=lambda x: x[1]["fitness"])]
