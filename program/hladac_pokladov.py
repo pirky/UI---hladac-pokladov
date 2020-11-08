@@ -211,32 +211,36 @@ def mutate_random(individual):
 
 
 # mutate generation with particular mutation function
-def mutation(new_generation):
+def mutation(new_generation, mutation_version):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
     for i in range(start_index, len(new_generation)):
         if random.random() < MUTATION:
-            new_generation[i] = mutate_random(new_generation[i])
+            if mutation_version == "2":
+                new_generation[i] = mutate_random(new_generation[i])
+            else:
+                new_generation[i] = mutate_little(new_generation[i])
 
 
 # create new generation using elitism, creating new individuals and rest are selected with particular selection method
-def create_generation(sorted_gen, selection_type):
+def create_generation(sorted_gen, choices):
     new_generation = {}
 
-    elite_end = int(ELITISM * NUM_OF_INDIVIDUALS)   # elitism
+    elite_end = int(ELITISM * NUM_OF_INDIVIDUALS)       # elitism
     for i in range(0, elite_end):
         new_generation[i] = {"fitness": 0, "path": [], "memory_cells": sorted_gen[i]["memory_cells"],
                              "treasures": list()}
 
-    start_fresh = int(ELITISM * NUM_OF_INDIVIDUALS)  # fresh individuals
+    start_fresh = int(ELITISM * NUM_OF_INDIVIDUALS)     # fresh individuals
     end_fresh = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
     for i in range(start_fresh, end_fresh):
         new_generation[i] = fresh_individual()
 
-    if selection_type == "1":                       # crossover
+    if choices["selection_type"] == "1":                # crossover
         tournament(sorted_gen, new_generation)
     else:
         roulette(sorted_gen, new_generation)
-    mutation(new_generation)                        # mutation
+
+    mutation(new_generation, choices["mutation"])       # mutation
 
     return new_generation
 
@@ -303,7 +307,7 @@ def start():
     global ELITISM
     global MUTATION
     commands = ["1", "2"]
-
+    choices = {}
     print("""    ------------------------
         Treasures Hunter 
        ------------------
@@ -313,23 +317,30 @@ def start():
     NUM_OF_GENERATIONS = int(input("Number of generations: "))
 
     print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
-    selection_type = input("Your choice: ")
-    while selection_type != "1" and selection_type != "2":
+    choices["selection_type"] = input("Your choice: ")
+    while choices["selection_type"] != "1" and choices["selection_type"] != "2":
         print("Try it again.")
         print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
-        selection_type = input("Your choice: ")
+        choices["selection_type"] = input("Your choice: ")
 
-    MUTATION = int(input("Percent of probability to mutate: ")) / 100
+    MUTATION = float(input("Percent of probability to mutate: ")) / 100
     while MUTATION > 1:
         print("Try it again.")
         MUTATION = int(input("Percent of probability to mutate: ")) / 100
 
-    ELITISM = int(input("Percent of elitism: ")) / 100
-    FRESH = int(input("Percent of fresh individuals: ")) / 100
+    print("For little mutation type \"1\"\nFor bigger mutation type \"2\"")
+    choices["mutation"] = input("Your choice: ")
+    while choices["mutation"] != "1" and choices["mutation"] != "2":
+        print("Try it again.")
+        print("For little mutation type \"1\"\nFor bigger mutation type \"2\"")
+        choices["mutation"] = input("Your choice: ")
+
+    ELITISM = float(input("Percent of elitism: ")) / 100
+    FRESH = float(input("Percent of fresh individuals: ")) / 100
     while ELITISM + FRESH > 1:
         print("Wrong numbers. Try it again.")
-        ELITISM = int(input("Percent of elitism: ")) / 100
-        FRESH = int(input("Percent of fresh individuals: ")) / 100
+        ELITISM = float(input("Percent of elitism: ")) / 100
+        FRESH = float(input("Percent of fresh individuals: ")) / 100
 
     file_path = "init.txt"
     init(file_path)
@@ -357,7 +368,7 @@ def start():
                     final_print()
                     return
 
-            generation = create_generation(sorted_gen, selection_type)
+            generation = create_generation(sorted_gen, choices)
 
         print("Press \"1\" if you want to continue with generating generations\nPress \"2\" if you want to end.")
         command = input("Type your option: ")
@@ -370,5 +381,3 @@ def start():
 
 
 start()
-
-# sorted_gen = [i[0] for i in sorted(generation.items(), reverse=True, key=lambda x: x[1]["fitness"])]
