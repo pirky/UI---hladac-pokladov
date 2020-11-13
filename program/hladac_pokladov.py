@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 random.seed(0)
 
 NUM_OF_CELLS = 32       # number of cells initialized in first generation
-FRESH = 0.25            # percent of new individuals made for new generation
+FRESH = 0.15            # percent of new individuals made for new generation
 ELITISM = 0.02          # percent of new individuals made by elitism
-TOURNAMENT = 0.5        # percent of individuals in tournament
-MUTATION = 0.5          # probability of mutation
+TOURNAMENT = 0.45       # percent of individuals in tournament
+MUTATION = 0.02         # probability of mutation
 
 NUM_OF_GENERATIONS = 400
 NUM_OF_INDIVIDUALS = 100
@@ -191,34 +191,20 @@ def tournament(sorted_gen, new_generation):
         new_generation[i] = crossover(sorted_individuals[0]["memory_cells"], sorted_individuals[1]["memory_cells"])
 
 
-# mutate just 2 random memory cells of individual
-def mutate_little(individual):
-    for i in range(2):
-        index = random.randint(0, 63)
-        individual["memory_cells"][index] = np.uint8(random.randint(0, 255))
-
-    return {"fitness": 0, "path": [], "memory_cells": individual["memory_cells"], "treasures": list()}
-
-
-# mutate random 5 to 15 memory cells of individual
-def mutate_random(individual):
-    mut_count = random.randint(5, 15)
-    for i in range(mut_count):
-        index = random.randint(0, 63)
-        individual["memory_cells"][index] = np.uint8(random.randint(0, 255))
+# mutate individuals cells if probability is higher then random number from 0 to 1
+def mutate(individual):
+    for i in range(64):
+        if random.random() < MUTATION:
+            individual["memory_cells"][i] = np.uint8(random.randint(0, 255))
 
     return {"fitness": 0, "path": [], "memory_cells": individual["memory_cells"], "treasures": list()}
 
 
 # mutate generation with particular mutation function
-def mutation(new_generation, mutation_version):
+def mutation(new_generation):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
     for i in range(start_index, len(new_generation)):
-        if random.random() < MUTATION:
-            if mutation_version == "2":
-                new_generation[i] = mutate_random(new_generation[i])
-            else:
-                new_generation[i] = mutate_little(new_generation[i])
+        new_generation[i] = mutate(new_generation[i])
 
 
 # create new generation using elitism, creating new individuals and rest are selected with particular selection method
@@ -240,7 +226,7 @@ def create_generation(sorted_gen, choices):
     else:
         roulette(sorted_gen, new_generation)
 
-    mutation(new_generation, choices["mutation"])       # mutation
+    mutation(new_generation)                            # mutation
 
     return new_generation
 
@@ -262,20 +248,20 @@ def info_generation(sorted_gen):
     avg = round(sum([i["fitness"] for i in sorted_gen]) / NUM_OF_INDIVIDUALS, 3)
     averages.append(avg)
     bests.append(sorted_gen[0]["fitness"])
-    # print(f"avg:\t{avg}", "\tbest:\t{}".format(sorted_gen[0]["fitness"]))
-    path = path_print(sorted_gen[0]["path"])
-    print(f"Generation avg fitness: {avg}")
-    print(f"""Best individual info:
-    fitness:        {sorted_gen[0]["fitness"]}
-    path:           {path}
-    path length:    {len(sorted_gen[0]["path"])}""")
+    print(f"avg:\t{avg}", "\t best:\t{}".format(sorted_gen[0]["fitness"]))
+    # path = path_print(sorted_gen[0]["path"])
+    # print(f"Generation avg fitness: {avg}")
+    # print(f"""Best individual info:
+    # fitness:        {sorted_gen[0]["fitness"]}
+    # path:           {path}
+    # path length:    {len(sorted_gen[0]["path"])}""")
 
     if best_individual["fitness"] < sorted_gen[0]["fitness"]:
         best_individual["fitness"] = sorted_gen[0]["fitness"]
         best_individual["path"] = [char for char in sorted_gen[0]["path"]]
-        if sorted_gen[0]["fitness"] >= 5:
-            print("\nFound new best global solution.")
-            return True
+        # if sorted_gen[0]["fitness"] >= 5:
+        #     print("\nFound new best global solution.")
+        #     return True
 
     return False
 
@@ -313,35 +299,29 @@ def start():
        ------------------
         """)
 
-    NUM_OF_INDIVIDUALS = int(input("Number of individuals: "))
-    NUM_OF_GENERATIONS = int(input("Number of generations: "))
+    # NUM_OF_INDIVIDUALS = int(input("Number of individuals: "))
+    # NUM_OF_GENERATIONS = int(input("Number of generations: "))
+    #
+    # print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
+    # choices["selection_type"] = input("Your choice: ")
+    # while choices["selection_type"] != "1" and choices["selection_type"] != "2":
+    #     print("Try it again.")
+    #     print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
+    #     choices["selection_type"] = input("Your choice: ")
+    #
+    # MUTATION = float(input("Percent of probability to mutate: ")) / 100
+    # while MUTATION > 1:
+    #     print("Try it again.")
+    #     MUTATION = int(input("Percent of probability to mutate: ")) / 100
+    #
+    # ELITISM = float(input("Percent of elitism: ")) / 100
+    # FRESH = float(input("Percent of fresh individuals: ")) / 100
+    # while ELITISM + FRESH > 1:
+    #     print("Wrong numbers. Try it again.")
+    #     ELITISM = float(input("Percent of elitism: ")) / 100
+    #     FRESH = float(input("Percent of fresh individuals: ")) / 100
 
-    print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
-    choices["selection_type"] = input("Your choice: ")
-    while choices["selection_type"] != "1" and choices["selection_type"] != "2":
-        print("Try it again.")
-        print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
-        choices["selection_type"] = input("Your choice: ")
-
-    MUTATION = float(input("Percent of probability to mutate: ")) / 100
-    while MUTATION > 1:
-        print("Try it again.")
-        MUTATION = int(input("Percent of probability to mutate: ")) / 100
-
-    print("For little mutation type \"1\"\nFor bigger mutation type \"2\"")
-    choices["mutation"] = input("Your choice: ")
-    while choices["mutation"] != "1" and choices["mutation"] != "2":
-        print("Try it again.")
-        print("For little mutation type \"1\"\nFor bigger mutation type \"2\"")
-        choices["mutation"] = input("Your choice: ")
-
-    ELITISM = float(input("Percent of elitism: ")) / 100
-    FRESH = float(input("Percent of fresh individuals: ")) / 100
-    while ELITISM + FRESH > 1:
-        print("Wrong numbers. Try it again.")
-        ELITISM = float(input("Percent of elitism: ")) / 100
-        FRESH = float(input("Percent of fresh individuals: ")) / 100
-
+    choices["selection_type"] = "1"
     file_path = "init.txt"
     init(file_path)
     generation = first_generation()
@@ -370,8 +350,9 @@ def start():
 
             generation = create_generation(sorted_gen, choices)
 
-        print("Press \"1\" if you want to continue with generating generations\nPress \"2\" if you want to end.")
-        command = input("Type your option: ")
+        # print("Press \"1\" if you want to continue with generating generations\nPress \"2\" if you want to end.")
+        # command = input("Type your option: ")
+        command = "2"
         while command not in commands:
             print("Try it again.")
             command = input("Type your option: ")
