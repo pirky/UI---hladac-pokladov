@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 
 random.seed(0)
 
-NUM_OF_CELLS = 32       # number of cells initialized in first generation
-FRESH = 0.15            # percent of new individuals made for new generation
-ELITISM = 0.02          # percent of new individuals made by elitism
-TOURNAMENT = 0.45       # percent of individuals in tournament
-MUTATION = 0.02         # probability of mutation
+NUM_OF_CELLS = 32  # number of cells initialized in first generation
+FRESH = 0.15  # percent of new individuals made for new generation
+ELITISM = 0.02  # percent of new individuals made by elitism
+TOURNAMENT = 5  # number of individuals in tournament
+MUTATION = 0.02  # probability of mutation
 
 NUM_OF_GENERATIONS = 400
 NUM_OF_INDIVIDUALS = 100
@@ -132,6 +132,7 @@ def found_treasures(individual):
             individual["treasures"].append(curr_pos)
 
         if len(individual["treasures"]) == len(all_treasures):  # all treasures found, searching ends
+            individual["path"] = individual["path"][:counter]
             return
         counter += 1
 
@@ -183,12 +184,14 @@ def roulette(sorted_gen, new_generation):
 # tournament selection for selecting parents for crossover
 def tournament(sorted_gen, new_generation):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
-    num_tournament = int(TOURNAMENT * NUM_OF_INDIVIDUALS)
 
     for i in range(start_index, NUM_OF_INDIVIDUALS):
-        sorted_individuals = sorted(random.choices(sorted_gen, k=num_tournament), reverse=True,
-                                    key=lambda x: x["fitness"])
-        new_generation[i] = crossover(sorted_individuals[0]["memory_cells"], sorted_individuals[1]["memory_cells"])
+        mom = sorted(random.choices(sorted_gen, k=TOURNAMENT), reverse=True, key=lambda x: x["fitness"])[0]
+        dad = sorted(random.choices(sorted_gen, k=TOURNAMENT), reverse=True, key=lambda x: x["fitness"])[0]
+
+        while np.array_equal(dad["memory_cells"], mom["memory_cells"]):
+            dad = sorted(random.choices(sorted_gen, k=TOURNAMENT), reverse=True, key=lambda x: x["fitness"])[0]
+        new_generation[i] = crossover(mom["memory_cells"], dad["memory_cells"])
 
 
 # mutate individuals cells if probability is higher then random number from 0 to 1
@@ -211,22 +214,22 @@ def mutation(new_generation):
 def create_generation(sorted_gen, choices):
     new_generation = {}
 
-    elite_end = int(ELITISM * NUM_OF_INDIVIDUALS)       # elitism
+    elite_end = int(ELITISM * NUM_OF_INDIVIDUALS)  # elitism
     for i in range(0, elite_end):
         new_generation[i] = {"fitness": 0, "path": [], "memory_cells": sorted_gen[i]["memory_cells"],
                              "treasures": list()}
 
-    start_fresh = int(ELITISM * NUM_OF_INDIVIDUALS)     # fresh individuals
+    start_fresh = int(ELITISM * NUM_OF_INDIVIDUALS)  # fresh individuals
     end_fresh = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
     for i in range(start_fresh, end_fresh):
         new_generation[i] = fresh_individual()
 
-    if choices["selection_type"] == "1":                # crossover
+    if choices["selection_type"] == "1":  # crossover
         tournament(sorted_gen, new_generation)
     else:
         roulette(sorted_gen, new_generation)
 
-    mutation(new_generation)                            # mutation
+    mutation(new_generation)  # mutation
 
     return new_generation
 
