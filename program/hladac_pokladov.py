@@ -2,7 +2,7 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
-random.seed(0)
+# random.seed(0)
 
 NUM_OF_CELLS = 32  # number of cells initialized in first generation
 FRESH = 0.15  # percent of new individuals made for new generation
@@ -10,7 +10,7 @@ ELITISM = 0.02  # percent of new individuals made by elitism
 TOURNAMENT = 5  # number of individuals in tournament
 MUTATION = 0.02  # probability of mutation
 
-NUM_OF_GENERATIONS = 400
+NUM_OF_GENERATIONS = 100
 NUM_OF_INDIVIDUALS = 100
 
 map_lines = 0
@@ -123,7 +123,7 @@ def found_treasures(individual):
         elif move == "L":
             curr_column -= 1
 
-        if not 0 <= curr_line < map_lines or not 0 <= curr_column < map_columns:  # check if I'm in the map
+        if curr_line < 0 or curr_line >= map_lines or curr_column < 0 or curr_column >= map_columns:  # check if I'm in the map
             individual["path"] = individual["path"][:counter]
             return
 
@@ -132,7 +132,7 @@ def found_treasures(individual):
             individual["treasures"].append(curr_pos)
 
         if len(individual["treasures"]) == len(all_treasures):  # all treasures found, searching ends
-            individual["path"] = individual["path"][:counter]
+            individual["path"] = individual["path"][:counter + 1]
             return
         counter += 1
 
@@ -177,8 +177,12 @@ def roulette(sorted_gen, new_generation):
     weights = [i["fitness"] for i in sorted_gen]
 
     for i in range(start_index, NUM_OF_INDIVIDUALS):
-        parents = random.choices(sorted_gen, weights=weights, k=2)
-        new_generation[i] = crossover(parents[0]["memory_cells"], parents[1]["memory_cells"])
+        mom = random.choices(sorted_gen, weights=weights)[0]
+        dad = random.choices(sorted_gen, weights=weights)[0]
+
+        while np.array_equal(dad["memory_cells"], mom["memory_cells"]):
+            dad = random.choices(sorted_gen, weights=weights)[0]
+        new_generation[i] = crossover(mom["memory_cells"], dad["memory_cells"])
 
 
 # tournament selection for selecting parents for crossover
@@ -206,7 +210,7 @@ def mutate(individual):
 # mutate generation with particular mutation function
 def mutation(new_generation):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
-    for i in range(start_index, len(new_generation)):
+    for i in range(start_index, NUM_OF_INDIVIDUALS):
         new_generation[i] = mutate(new_generation[i])
 
 
@@ -329,6 +333,7 @@ def start():
     init(file_path)
     generation = first_generation()
 
+    counter = 1
     while True:
         for i in range(NUM_OF_GENERATIONS):
             for curr_ind in range(NUM_OF_INDIVIDUALS):
@@ -337,7 +342,7 @@ def start():
                 set_fitness(generation[curr_ind])
 
             sorted_gen = [i[1] for i in sorted(generation.items(), reverse=True, key=lambda x: x[1]["fitness"])]
-            print(f"{i + 1}. generation")
+            print(f"{counter}. generation")
 
             done = info_generation(sorted_gen)
             if done:
@@ -352,6 +357,7 @@ def start():
                     return
 
             generation = create_generation(sorted_gen, choices)
+            counter += 1
 
         # print("Press \"1\" if you want to continue with generating generations\nPress \"2\" if you want to end.")
         # command = input("Type your option: ")
@@ -360,8 +366,52 @@ def start():
             print("Try it again.")
             command = input("Type your option: ")
         if command == "2":
-            final_print()
+            # final_print()
             return
 
 
-start()
+def testing():
+    global map_lines
+    global map_columns
+    global all_treasures
+    global start_line
+    global start_column
+    global best_individual
+    global averages
+    global bests
+    number_of_tests = 5
+    all_averages = []
+    global_avg = [0 for _ in range(NUM_OF_GENERATIONS)]
+
+    for _ in range(number_of_tests):
+        map_lines = 0
+        map_columns = 0
+        all_treasures = {}
+        start_line = 0
+        start_column = 0
+        best_individual = {"fitness": 0, "path": []}
+        averages = []
+        bests = []
+        start()
+        all_averages.append(averages)
+
+    fig, ax = plt.subplots()
+    for i in range(number_of_tests):
+        ax.plot(all_averages[i])
+
+    ax.set(xlabel='Generatio-ns', ylabel='Fitness', title='All averages')
+    ax.grid()
+    plt.show()
+
+    for avg in all_averages:
+        for i in range(len(avg)):
+            global_avg[i] += avg[i] / number_of_tests
+
+    fig, ax = plt.subplots()
+    ax.plot(global_avg)
+    ax.set(xlabel='Generations', ylabel='Fitness', title='Global average')
+    ax.grid()
+    plt.show()
+
+
+testing()
