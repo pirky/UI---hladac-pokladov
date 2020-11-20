@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 # random.seed(0)
 
 NUM_OF_CELLS = 32  # number of cells initialized in first generation
-FRESH = 0.15  # percent of new individuals made for new generation
-ELITISM = 0.02  # percent of new individuals made by elitism
-TOURNAMENT = 5  # number of individuals in tournament
-MUTATION = 0.02  # probability of mutation
+ELITISM = 0.01  # percent of new individuals made by elitism
+FRESH = 0.05  # percent of new individuals made for new generation
+MUTATION = 0.05  # probability of mutation
+TOURNAMENT = 0.2  # number of individuals in tournament
 
-NUM_OF_GENERATIONS = 100
+NUM_OF_GENERATIONS = 400
 NUM_OF_INDIVIDUALS = 100
 
 map_lines = 0
@@ -188,18 +188,18 @@ def roulette(sorted_gen, new_generation):
 # tournament selection for selecting parents for crossover
 def tournament(sorted_gen, new_generation):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
-
+    num_tournament = int(TOURNAMENT * NUM_OF_INDIVIDUALS)
     for i in range(start_index, NUM_OF_INDIVIDUALS):
-        mom = sorted(random.choices(sorted_gen, k=TOURNAMENT), reverse=True, key=lambda x: x["fitness"])[0]
-        dad = sorted(random.choices(sorted_gen, k=TOURNAMENT), reverse=True, key=lambda x: x["fitness"])[0]
+        mom = sorted(random.choices(sorted_gen, k=num_tournament), reverse=True, key=lambda x: x["fitness"])[0]
+        dad = sorted(random.choices(sorted_gen, k=num_tournament), reverse=True, key=lambda x: x["fitness"])[0]
 
         while np.array_equal(dad["memory_cells"], mom["memory_cells"]):
-            dad = sorted(random.choices(sorted_gen, k=TOURNAMENT), reverse=True, key=lambda x: x["fitness"])[0]
+            dad = sorted(random.choices(sorted_gen, k=num_tournament), reverse=True, key=lambda x: x["fitness"])[0]
         new_generation[i] = crossover(mom["memory_cells"], dad["memory_cells"])
 
 
-# mutate individuals cells if probability is higher then random number from 0 to 1
-def mutate(individual):
+# mutate individual's cells with random number
+def mutate_random(individual):
     for i in range(64):
         if random.random() < MUTATION:
             individual["memory_cells"][i] = np.uint8(random.randint(0, 255))
@@ -207,11 +207,24 @@ def mutate(individual):
     return {"fitness": 0, "path": [], "memory_cells": individual["memory_cells"], "treasures": list()}
 
 
+# mutate individual's cells with inverting one random bit
+def mutate_invert(individual):
+    for i in range(64):
+        if random.random() < MUTATION:
+            shift = random.randint(0, 7)
+            individual["memory_cells"][i] = np.uint8(individual["memory_cells"][i] ^ (1 << shift))
+
+    return {"fitness": 0, "path": [], "memory_cells": individual["memory_cells"], "treasures": list()}
+
+
 # mutate generation with particular mutation function
-def mutation(new_generation):
+def mutation(new_generation, choices):
     start_index = int((ELITISM + FRESH) * NUM_OF_INDIVIDUALS)
     for i in range(start_index, NUM_OF_INDIVIDUALS):
-        new_generation[i] = mutate(new_generation[i])
+        if choices["mutation"] == "1":
+            new_generation[i] = mutate_random(new_generation[i])
+        else:
+            new_generation[i] = mutate_invert(new_generation[i])
 
 
 # create new generation using elitism, creating new individuals and rest are selected with particular selection method
@@ -233,7 +246,7 @@ def create_generation(sorted_gen, choices):
     else:
         roulette(sorted_gen, new_generation)
 
-    mutation(new_generation)  # mutation
+    mutation(new_generation, choices)  # mutation
 
     return new_generation
 
@@ -255,20 +268,19 @@ def info_generation(sorted_gen):
     avg = round(sum([i["fitness"] for i in sorted_gen]) / NUM_OF_INDIVIDUALS, 3)
     averages.append(avg)
     bests.append(sorted_gen[0]["fitness"])
-    print(f"avg:\t{avg}", "\t best:\t{}".format(sorted_gen[0]["fitness"]))
-    # path = path_print(sorted_gen[0]["path"])
-    # print(f"Generation avg fitness: {avg}")
-    # print(f"""Best individual info:
-    # fitness:        {sorted_gen[0]["fitness"]}
-    # path:           {path}
-    # path length:    {len(sorted_gen[0]["path"])}""")
+    path = path_print(sorted_gen[0]["path"])
+    print(f"Generation avg fitness: {avg}")
+    print(f"""Best individual info:
+    fitness:        {sorted_gen[0]["fitness"]}
+    path:           {path}
+    path length:    {len(sorted_gen[0]["path"])}""")
 
     if best_individual["fitness"] < sorted_gen[0]["fitness"]:
         best_individual["fitness"] = sorted_gen[0]["fitness"]
         best_individual["path"] = [char for char in sorted_gen[0]["path"]]
-        # if sorted_gen[0]["fitness"] >= 5:
-        #     print("\nFound new best global solution.")
-        #     return True
+        if sorted_gen[0]["fitness"] >= 5:
+            print("\nFound new best global solution.")
+            return True
 
     return False
 
@@ -286,7 +298,9 @@ def final_print():
     fig, ax = plt.subplots()
     ax.plot(averages, label="Average fitness")
     ax.plot(bests, label="Best fitness")
-    ax.set(xlabel='Generations', ylabel='Fitness', title='Generation averages graph')
+    ax.set(xlabel='Generations', ylabel='Fitness',
+           title=f"INDIVIDUALS: {NUM_OF_INDIVIDUALS} GENERATIONS: {NUM_OF_GENERATIONS}\nELITISM: {ELITISM} FRESH: "
+                 f"{FRESH} MUTATION: {MUTATION}")
     ax.grid()
     plt.legend()
     plt.show()
@@ -300,36 +314,53 @@ def start():
     global ELITISM
     global MUTATION
     commands = ["1", "2"]
-    choices = {}
+    choices = {"selection_type": "1", "mutation": "2"}
+
     print("""    ------------------------
-        Treasures Hunter 
+        Treasures Hunter
        ------------------
         """)
 
-    # NUM_OF_INDIVIDUALS = int(input("Number of individuals: "))
-    # NUM_OF_GENERATIONS = int(input("Number of generations: "))
-    #
-    # print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
-    # choices["selection_type"] = input("Your choice: ")
-    # while choices["selection_type"] != "1" and choices["selection_type"] != "2":
-    #     print("Try it again.")
-    #     print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
-    #     choices["selection_type"] = input("Your choice: ")
-    #
-    # MUTATION = float(input("Percent of probability to mutate: ")) / 100
-    # while MUTATION > 1:
-    #     print("Try it again.")
-    #     MUTATION = int(input("Percent of probability to mutate: ")) / 100
-    #
-    # ELITISM = float(input("Percent of elitism: ")) / 100
-    # FRESH = float(input("Percent of fresh individuals: ")) / 100
-    # while ELITISM + FRESH > 1:
-    #     print("Wrong numbers. Try it again.")
-    #     ELITISM = float(input("Percent of elitism: ")) / 100
-    #     FRESH = float(input("Percent of fresh individuals: ")) / 100
+    print("Type path to file with initialization information.")
+    while True:
+        try:
+            file_path = input("File path: ")
+            open(file_path, "r")
+        except FileNotFoundError:
+            print("File not found. Try it again.")
+        else:
+            break
 
-    choices["selection_type"] = "1"
-    file_path = "init.txt"
+    NUM_OF_INDIVIDUALS = int(input("Number of individuals: "))
+    NUM_OF_GENERATIONS = int(input("Number of generations: "))
+
+    print("\nFor \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
+    choices["selection_type"] = input("Your choice: ")
+    while choices["selection_type"] != "1" and choices["selection_type"] != "2":
+        print("Try it again.")
+        print("For \"tournament\" selection type \"1\"\nFor \"roulette\" selection type \"2\"")
+        choices["selection_type"] = input("Your choice: ")
+
+    print("\nFor \"random number\" mutation type \"1\"\nFor \"invert\" mutation type \"2\"")
+    choices["mutation"] = input("Your choice: ")
+    while choices["mutation"] != "1" and choices["mutation"] != "2":
+        print("Try it again.")
+        print("For \"random number\" mutation type \"1\"\nFor \"invert\" mutation type \"2\"")
+        choices["mutation"] = input("Your choice: ")
+
+    print()
+    MUTATION = float(input("Percent of probability to mutate: ")) / 100
+    while MUTATION > 1:
+        print("Try it again.")
+        MUTATION = int(input("Percent of probability to mutate: ")) / 100
+
+    ELITISM = float(input("Percent of elitism: ")) / 100
+    FRESH = float(input("Percent of fresh individuals: ")) / 100
+    while ELITISM + FRESH > 1:
+        print("Wrong numbers. Try it again.")
+        ELITISM = float(input("Percent of elitism: ")) / 100
+        FRESH = float(input("Percent of fresh individuals: ")) / 100
+
     init(file_path)
     generation = first_generation()
 
@@ -359,17 +390,17 @@ def start():
             generation = create_generation(sorted_gen, choices)
             counter += 1
 
-        # print("Press \"1\" if you want to continue with generating generations\nPress \"2\" if you want to end.")
-        # command = input("Type your option: ")
-        command = "2"
+        print("Press \"1\" if you want to continue with generating generations\nPress \"2\" if you want to end.")
+        command = input("Type your option: ")
         while command not in commands:
             print("Try it again.")
             command = input("Type your option: ")
         if command == "2":
-            # final_print()
+            final_print()
             return
 
 
+# function for doing n-tests
 def testing():
     global map_lines
     global map_columns
@@ -381,7 +412,9 @@ def testing():
     global bests
     number_of_tests = 5
     all_averages = []
+    all_best = []
     global_avg = [0 for _ in range(NUM_OF_GENERATIONS)]
+    global_best = [0 for _ in range(NUM_OF_GENERATIONS)]
 
     for _ in range(number_of_tests):
         map_lines = 0
@@ -394,12 +427,25 @@ def testing():
         bests = []
         start()
         all_averages.append(averages)
+        all_best.append(bests)
 
     fig, ax = plt.subplots()
     for i in range(number_of_tests):
         ax.plot(all_averages[i])
 
-    ax.set(xlabel='Generatio-ns', ylabel='Fitness', title='All averages')
+    ax.set(xlabel='Generations', ylabel='Fitness',
+           title=f"ALL AVERAGES\nINDIVIDUALS: {NUM_OF_INDIVIDUALS} GENERATIONS: {NUM_OF_GENERATIONS}\nELITISM: "
+                 f"{ELITISM} FRESH: {FRESH} MUTATION: {MUTATION}")
+    ax.grid()
+    plt.show()
+
+    fig, ax = plt.subplots()
+    for i in range(number_of_tests):
+        ax.plot(all_best[i])
+
+    ax.set(xlabel='Generations', ylabel='Fitness',
+           title=f"ALL BESTS\nINDIVIDUALS: {NUM_OF_INDIVIDUALS} GENERATIONS: {NUM_OF_GENERATIONS}\nELITISM: "
+                 f"{ELITISM} FRESH: {FRESH} MUTATION: {MUTATION}")
     ax.grid()
     plt.show()
 
@@ -407,11 +453,19 @@ def testing():
         for i in range(len(avg)):
             global_avg[i] += avg[i] / number_of_tests
 
+    for best in all_best:
+        for i in range(len(best)):
+            global_best[i] += best[i] / number_of_tests
+
     fig, ax = plt.subplots()
-    ax.plot(global_avg)
-    ax.set(xlabel='Generations', ylabel='Fitness', title='Global average')
+    ax.plot(global_avg, label="Average fitness")
+    ax.plot(global_best, label="Best fitness")
+    ax.set(xlabel='Generations', ylabel='Fitness',
+           title=f"GLOBAL AVERAGE\nINDIVIDUALS: {NUM_OF_INDIVIDUALS} GENERATIONS: {NUM_OF_GENERATIONS}\nELITISM: "
+                 f"{ELITISM} FRESH: {FRESH} MUTATION: {MUTATION}")
     ax.grid()
+    plt.legend()
     plt.show()
 
 
-testing()
+start()
