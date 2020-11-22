@@ -289,7 +289,7 @@ def info_generation(sorted_gen):
 def final_print():
     avg = round(sum(averages) / len(averages), 3)
     path = path_print(best_individual["path"])
-    print(f"Average fitness: {avg}")
+    print(f"\nAverage fitness: {avg}")
     print(f"""Best individual info:
     fitness:        {best_individual["fitness"]}
     path:           {path}
